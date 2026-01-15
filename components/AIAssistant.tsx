@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, Sparkles, Send, Mic, Camera, Globe, BrainCircuit, 
@@ -7,7 +8,6 @@ import {
 import { AppState } from '../types';
 import { askGemini, analyzeLeafOrInvoice, decodeBase64, decodeAudioData, encodeBase64 } from '../services/aiService';
 import { Button } from './UIElements';
-// Fix: Added LiveServerMessage to imports from @google/genai
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 
 interface AIAssistantProps {
@@ -29,7 +29,6 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
   const [useSearch, setUseSearch] = useState(false);
   const [useThinking, setUseThinking] = useState(false);
   
-  // States para Audio Live
   const [isLive, setIsLive] = useState(false);
   const [liveStatus, setLiveStatus] = useState('Inactivo');
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -42,7 +41,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
@@ -51,53 +50,30 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
 
     const userMsg: ChatMessage = { role: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
+    const currentInput = input;
     setInput('');
     setLoading(true);
 
     try {
-      const result = await askGemini(input, data, useSearch, useThinking);
+      const result = await askGemini(currentInput, data, useSearch, useThinking);
       setMessages(prev => [...prev, { 
         role: 'model', 
-        text: result.text || 'No pude generar una respuesta.',
+        text: result.text || 'No pude procesar la consulta.',
         grounding: result.grounding,
         isThinking: useThinking
       }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: "Error de conexión con Gemini. Revisa tu API Key." }]);
+      setMessages(prev => [...prev, { role: 'model', text: "Error de conexión. Verifica tu API KEY." }]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setLoading(true);
-    setMessages(prev => [...prev, { role: 'user', text: `[Imagen adjunta: ${file.name}]` }]);
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
-      try {
-        const text = await analyzeLeafOrInvoice(base64, file.type, "Analiza esta imagen y relaciónala con la gestión de la finca.");
-        setMessages(prev => [...prev, { role: 'model', text }]);
-      } catch (err) {
-        setMessages(prev => [...prev, { role: 'model', text: "Fallo al procesar la imagen." }]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // --- LÓGICA GEMINI LIVE API ---
   const startLiveSession = async () => {
     try {
       setLiveStatus('Conectando...');
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
       const inputCtx = new AudioContext({ sampleRate: 16000 });
       const outputCtx = new AudioContext({ sampleRate: 24000 });
       audioContextRef.current = outputCtx;
@@ -114,9 +90,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
               const int16 = new Int16Array(inputData.length);
               for (let i = 0; i < inputData.length; i++) int16[i] = inputData[i] * 32768;
               const pcmBase64 = encodeBase64(new Uint8Array(int16.buffer));
-              sessionPromise.then(s => s.sendRealtimeInput({ 
-                media: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' } 
-              }));
+              sessionPromise.then(s => s.sendRealtimeInput({ media: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' } }));
             };
             source.connect(processor);
             processor.connect(inputCtx.destination);
@@ -130,7 +104,6 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
               const source = outputCtx.createBufferSource();
               source.buffer = buffer;
               source.connect(outputCtx.destination);
-              
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputCtx.currentTime);
               source.start(nextStartTimeRef.current);
               nextStartTimeRef.current += buffer.duration;
@@ -143,14 +116,12 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-          systemInstruction: "Eres un asistente de voz para un agricultor. Sé breve, profesional y directo."
+          systemInstruction: "Eres un consultor experto para un agrónomo. Sé profesional, directo y técnico."
         }
       });
-
       setIsLive(true);
     } catch (err) {
-      console.error(err);
-      alert("No se pudo iniciar la sesión de voz. Revisa permisos de micrófono.");
+      alert("Error al iniciar voz. Revisa micrófonos.");
     }
   };
 
@@ -164,72 +135,68 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[250] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-2 sm:p-6 animate-fade-in">
-      <div className="bg-slate-900 w-full max-w-4xl h-[90vh] rounded-[3rem] border border-slate-700 shadow-2xl flex flex-col overflow-hidden animate-slide-up">
-        
-        {/* Header */}
-        <div className="p-6 bg-slate-950/50 border-b border-slate-800 flex justify-between items-center">
+    <div className="flex flex-col h-full bg-slate-900 border-l border-slate-800 shadow-2xl">
+        {/* Header IA */}
+        <div className="p-6 bg-slate-950 border-b border-slate-800 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-4">
-                <div className="bg-emerald-600/20 p-3 rounded-2xl border border-emerald-500/30">
-                    <Sparkles className="w-6 h-6 text-emerald-400 animate-pulse" />
+                <div className="bg-purple-600/20 p-2.5 rounded-2xl border border-purple-500/30">
+                    <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
                 </div>
                 <div>
-                    <h3 className="text-white font-black text-xl uppercase tracking-tighter">Gemini Intelligence</h3>
-                    <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Consultor Agrícola 360</p>
+                    <h3 className="text-white font-black text-sm uppercase tracking-widest leading-none">Gemini 3.0 Core</h3>
+                    <p className="text-[9px] text-purple-500 font-bold uppercase tracking-widest mt-1">Soporte Estratégico Online</p>
                 </div>
             </div>
-            <button onClick={onClose} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 transition-all">
-                <X className="w-6 h-6" />
+            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 transition-all">
+                <X className="w-5 h-5" />
             </button>
         </div>
 
-        {/* Live Audio Bar */}
+        {/* Live Audio Monitor */}
         {isLive && (
-            <div className="bg-emerald-900/20 border-b border-emerald-500/20 p-4 flex items-center justify-between animate-pulse">
+            <div className="bg-purple-900/10 border-b border-purple-500/20 p-4 flex items-center justify-between animate-pulse shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="flex gap-1">
-                        <div className="w-1 h-4 bg-emerald-500 rounded-full animate-bounce"></div>
-                        <div className="w-1 h-6 bg-emerald-400 rounded-full animate-bounce delay-75"></div>
-                        <div className="w-1 h-4 bg-emerald-500 rounded-full animate-bounce delay-150"></div>
+                        <div className="w-1 h-3 bg-purple-500 rounded-full animate-bounce"></div>
+                        <div className="w-1 h-5 bg-purple-400 rounded-full animate-bounce delay-75"></div>
+                        <div className="w-1 h-3 bg-purple-500 rounded-full animate-bounce delay-150"></div>
                     </div>
-                    <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">{liveStatus}</span>
+                    <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">{liveStatus}</span>
                 </div>
-                <Button variant="danger" size="sm" onClick={stopLiveSession} icon={Square}>DETENER VOZ</Button>
+                <button onClick={stopLiveSession} className="bg-red-600/20 text-red-400 text-[9px] font-black px-3 py-1 rounded-lg border border-red-500/30 uppercase">Detener Voz</button>
             </div>
         )}
 
         {/* Chat Area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-900/50">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-900/30">
             {messages.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
-                    <Bot className="w-16 h-16 text-indigo-400" />
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40">
+                    <BrainCircuit className="w-12 h-12 text-slate-400" />
                     <div>
-                        <p className="text-white font-black uppercase text-sm">¿En qué puedo apoyarte hoy?</p>
-                        <p className="text-[10px] text-slate-400 uppercase mt-1">Analiza costos, predice cosechas o busca precios.</p>
+                        <p className="text-white font-black uppercase text-[10px] tracking-widest">¿En qué puedo asistirte hoy?</p>
+                        <p className="text-[9px] text-slate-500 uppercase mt-1">Analiza el PH de tus suelos, predice cosechas o<br/>optimiza tus costos de fertilización.</p>
                     </div>
                 </div>
             )}
             
             {messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-down`}>
-                    <div className={`max-w-[85%] p-5 rounded-[2rem] shadow-xl space-y-3 ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'}`}>
+                    <div className={`max-w-[90%] p-4 rounded-3xl shadow-lg space-y-3 ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'}`}>
                         <div className="flex items-center gap-2 mb-1">
-                            {msg.role === 'user' ? <User className="w-3 h-3 opacity-50" /> : <Bot className="w-3 h-3 text-emerald-400" />}
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-50">{msg.role === 'user' ? 'Tú' : 'Gemini Core'}</span>
-                            {msg.isThinking && <span className="text-[8px] bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">THINKING MODE</span>}
+                            {msg.role === 'user' ? <User className="w-3 h-3 opacity-50" /> : <Bot className="w-3 h-3 text-purple-400" />}
+                            <span className="text-[8px] font-black uppercase tracking-widest opacity-50">{msg.role === 'user' ? 'Administrador' : 'Gemini AI'}</span>
+                            {msg.isThinking && <span className="text-[8px] bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30 font-black uppercase">Thinking</span>}
                         </div>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{msg.text}</p>
+                        <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">{msg.text}</p>
                         
                         {msg.grounding && msg.grounding.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-slate-700 space-y-2">
-                                <p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-1"><Globe className="w-3 h-3"/> Fuentes Verificadas:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {msg.grounding.map((chunk, i) => (
-                                        chunk.web && (
-                                            <a key={i} href={chunk.web.uri} target="_blank" rel="noreferrer" className="text-[9px] bg-slate-900 hover:bg-slate-950 px-2 py-1 rounded-lg border border-slate-700 text-indigo-400 flex items-center gap-1 transition-all">
-                                                <LinkIcon className="w-2.5 h-2.5" /> {chunk.web.title || 'Ver fuente'}
-                                            </a>
-                                        )
+                                <p className="text-[8px] font-black text-slate-500 uppercase flex items-center gap-1"><Globe className="w-3 h-3"/> Fuentes Google Search:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {msg.grounding.map((chunk, i) => chunk.web && (
+                                        <a key={i} href={chunk.web.uri} target="_blank" rel="noreferrer" className="text-[8px] bg-slate-900 hover:bg-black px-2 py-1 rounded-lg border border-slate-700 text-indigo-400 flex items-center gap-1 transition-all">
+                                            <LinkIcon className="w-2 h-2" /> {chunk.web.title}
+                                        </a>
                                     ))}
                                 </div>
                             </div>
@@ -239,67 +206,58 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, onClose }) => {
             ))}
             {loading && (
                 <div className="flex justify-start animate-pulse">
-                    <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex items-center gap-3">
-                        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Gemini está analizando...</span>
+                    <div className="bg-slate-800 p-4 rounded-3xl border border-slate-700 flex items-center gap-3">
+                        <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Consultando Core de Datos...</span>
                     </div>
                 </div>
             )}
         </div>
 
-        {/* Controls Panel */}
-        <div className="p-4 bg-slate-950/50 border-t border-slate-800 space-y-4">
+        {/* Input Controls */}
+        <div className="p-6 bg-slate-950 border-t border-slate-800 space-y-4 shrink-0">
             <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                 <button 
                     onClick={() => setUseSearch(!useSearch)} 
-                    className={`shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase flex items-center gap-2 border transition-all ${useSearch ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-500'}`}
+                    className={`shrink-0 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase flex items-center gap-1.5 border transition-all ${useSearch ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-500'}`}
                 >
-                    <Search className="w-3.5 h-3.5" /> Búsqueda Google
+                    <Search className="w-3 h-3" /> Search Grounding
                 </button>
                 <button 
                     onClick={() => setUseThinking(!useThinking)} 
-                    className={`shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase flex items-center gap-2 border transition-all ${useThinking ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-500'}`}
+                    className={`shrink-0 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase flex items-center gap-1.5 border transition-all ${useThinking ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-500'}`}
                 >
-                    <BrainCircuit className="w-3.5 h-3.5" /> Pensamiento (3 Pro)
+                    <BrainCircuit className="w-3 h-3" /> Deep Thinking
                 </button>
-                <button 
-                    onClick={() => fileInputRef.current?.click()} 
-                    className="shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
-                >
-                    <Camera className="w-3.5 h-3.5" /> Analizar Foto
-                </button>
-                <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
             </div>
 
             <div className="flex gap-3 items-end">
                 <button 
                     onClick={isLive ? stopLiveSession : startLiveSession}
-                    className={`p-4 rounded-2xl shadow-xl transition-all active:scale-95 ${isLive ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}
+                    className={`p-3 rounded-2xl shadow-xl transition-all active:scale-95 border-2 ${isLive ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}
                 >
-                    <Mic className="w-6 h-6" />
+                    <Mic className="w-5 h-5" />
                 </button>
                 
-                <div className="flex-1 bg-slate-900 border border-slate-700 rounded-3xl p-1 flex items-center shadow-inner">
+                <div className="flex-1 bg-slate-900 border border-slate-700 rounded-3xl p-1 flex items-center shadow-inner group-focus-within:border-purple-500/50 transition-colors">
                     <textarea 
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-                        placeholder="Escribe tu consulta estratégica..."
-                        className="flex-1 bg-transparent border-none outline-none text-white p-3 text-sm font-medium resize-none max-h-32"
+                        placeholder="Escribe tu consulta o usa voz..."
+                        className="flex-1 bg-transparent border-none outline-none text-white p-3 text-xs font-bold resize-none max-h-32 min-h-[44px]"
                         rows={1}
                     />
                     <button 
                         onClick={handleSend}
                         disabled={!input.trim() || loading}
-                        className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all disabled:opacity-30 m-1"
+                        className="p-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl transition-all disabled:opacity-20 m-1 shadow-lg active:scale-90"
                     >
-                        <Send className="w-5 h-5" />
+                        <Send className="w-4 h-4" />
                     </button>
                 </div>
             </div>
         </div>
-
-      </div>
     </div>
   );
 };
