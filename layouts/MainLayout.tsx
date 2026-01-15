@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Package, Pickaxe, Target, Tractor, Database, Settings, Globe, ChevronDown, Download, Plus, HelpCircle, CalendarRange, Sprout, Calculator, Lightbulb, Sun, Moon, LayoutGrid, Bug, Settings2, Leaf, DollarSign, Briefcase, ClipboardList } from 'lucide-react';
+import { Package, Pickaxe, Target, Tractor, Database, Settings, Globe, ChevronDown, Download, Plus, HelpCircle, CalendarRange, Sprout, Calculator, Lightbulb, Sun, Moon, LayoutGrid, Bug, Settings2, Leaf, DollarSign, Briefcase, ClipboardList, Sparkles } from 'lucide-react';
 import { generateId, processInventoryMovement } from '../services/inventoryService';
 import { 
     generatePDF, generateExcel, generateLaborReport, generateHarvestReport, 
@@ -35,6 +35,7 @@ import { DeleteModal } from '../components/DeleteModal';
 import { PayrollModal } from '../components/PayrollModal';
 import { LaborSchedulerView } from '../components/LaborSchedulerView';
 import { LaborForm } from '../components/LaborForm'; 
+import { AIAssistant } from '../components/AIAssistant'; // Nueva importación
 import { InventoryItem, CostClassification } from '../types';
 
 interface MainLayoutProps {
@@ -110,6 +111,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
   const [showPayroll, setShowPayroll] = useState(false);
   const [showGlobalHistory, setShowGlobalHistory] = useState(false);
   const [showLaborForm, setShowLaborForm] = useState(false); 
+  const [showAI, setShowAI] = useState(false); // Nuevo modal IA
   
   // Item specific modals
   const [movementModal, setMovementModal] = useState<{item: InventoryItem, type: 'IN' | 'OUT'} | null>(null);
@@ -127,7 +129,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
     }
   }, [currentTab]);
 
-  // --- MEMOIZED DATA SLICES (Performance Optimization) ---
+  // --- MEMOIZED DATA SLICES ---
   const activeInventory = useMemo(() => data.inventory.filter(i => i.warehouseId === activeId), [data.inventory, activeId]);
   const activeCostCenters = useMemo(() => data.costCenters.filter(c => c.warehouseId === activeId), [data.costCenters, activeId]);
   const activeLaborLogs = useMemo(() => data.laborLogs.filter(l => l.warehouseId === activeId), [data.laborLogs, activeId]);
@@ -149,13 +151,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
   const activePests = useMemo(() => data.pestLogs.filter(l => l.warehouseId === activeId), [data.pestLogs, activeId]);
   const activeAgenda = useMemo(() => data.agenda.filter(a => a.warehouseId === activeId), [data.agenda, activeId]);
 
-  // --- STABLE CALLBACKS FOR DASHBOARD ---
+  // --- STABLE CALLBACKS ---
   const handleDashboardAddMovement = useCallback((i: InventoryItem, t: 'IN' | 'OUT') => {
     setMovementModal({item: i, type: t});
   }, []);
 
   const handleDashboardDelete = useCallback((id: string) => {
-    // Direct delete request (no PIN)
     setData(current => {
         const item = current.inventory.find(i => i.id === id);
         if (item) setDeleteItem(item);
@@ -252,7 +253,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
                 </div>
             </div>
 
-            {/* Level 1: Category Groups (Segmented) */}
+            {/* Level 1: Category Groups */}
             <div className="flex bg-slate-200 dark:bg-slate-950 p-1 rounded-2xl gap-1 overflow-x-auto scrollbar-hide">
                 {NAV_GROUPS.map(group => (
                     <button 
@@ -266,7 +267,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
                 ))}
             </div>
 
-            {/* Level 2: Specific Actions (Animated Fade In) */}
+            {/* Level 2: Specific Actions */}
             <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl gap-2 overflow-x-auto scrollbar-hide border border-slate-300 dark:border-slate-800 animate-fade-in key={activeGroup}">
                 {NAV_GROUPS.find(g => g.id === activeGroup)?.items.map(tab => (
                     <button 
@@ -300,13 +301,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
                 onViewGlobalHistory={handleDashboardGlobalHistory} 
                 onOpenExport={() => setShowExport(true)}
                 onNavigate={(tabId) => {
-                    // Logic to switch tabs from Dashboard Widget
                     const foundGroup = NAV_GROUPS.find(g => g.items.some(item => item.id === tabId));
                     if (foundGroup) {
                         setActiveGroup(foundGroup.id);
                         setCurrentTab(tabId);
                     } else if (tabId === 'masters') {
-                        // Special handling for settings modal trigger
                         setShowSettings(true);
                     }
                 }}
@@ -330,18 +329,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ onShowNotification }) =>
         {currentTab === 'stats' && <StatsView laborFactor={data.laborFactor} movements={activeMovements} suppliers={activeSuppliers} costCenters={activeCostCenters} laborLogs={activeLaborLogs} harvests={activeHarvests} maintenanceLogs={activeMaintenance} rainLogs={activeRain} machines={activeMachines} budgets={activeBudgets} plannedLabors={activePlannedLabors} />}
         
         {/* Floating Buttons */}
-        <div className="fixed bottom-6 left-6 flex gap-2 z-30">
+        <div className="fixed bottom-6 left-6 flex flex-col gap-3 z-30">
             <button onClick={() => setShowExport(true)} className="p-4 bg-slate-800 text-white rounded-3xl shadow-2xl border-2 border-slate-600 active:scale-90 transition-all"><Download className="w-6 h-6" /></button>
+            {/* BOTÓN GEMINI FUTURISTA */}
+            <button 
+                onClick={() => setShowAI(true)} 
+                className="p-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white rounded-[2rem] shadow-2xl border-2 border-indigo-400/50 active:scale-95 transition-all group overflow-hidden relative"
+            >
+                <div className="absolute inset-0 bg-white/20 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <Sparkles className="w-8 h-8 group-hover:rotate-12 transition-transform" />
+            </button>
         </div>
+        
         {currentTab === 'inventory' && <button onClick={() => setShowAddForm(true)} className="fixed bottom-6 right-6 bg-emerald-600 text-white p-5 rounded-3xl shadow-2xl border-2 border-emerald-400 active:scale-95 transition-all z-30 mr-20 sm:mr-0"><Plus className="w-8 h-8" /></button>}
       </main>
 
       {/* MODALS LAYER */}
       <div className="z-[100] relative">
+          {showAI && <AIAssistant data={data} onClose={() => setShowAI(false)} />}
           {showManual && <ManualModal onClose={() => setShowManual(false)} />}
           {showData && data && <DataModal fullState={data} onRestoreData={(d) => { setData(d); setShowData(false); }} onClose={() => setShowData(false)} onShowNotification={onShowNotification} />}
           
-          {/* Settings Modal (Activated by Button or Tab) */}
+          {/* Settings Modal */}
           {(showSettings || currentTab === 'masters') && data && (
             <SettingsModal 
                 suppliers={activeSuppliers} 
