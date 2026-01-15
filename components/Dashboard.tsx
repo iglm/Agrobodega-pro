@@ -2,7 +2,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { InventoryItem, Movement, CostCenter, Personnel, Machine, MaintenanceLog, Supplier } from '../types';
 import { formatCurrency } from '../services/inventoryService';
-import { Package, Search, Activity, HardDrive, AlertTriangle, Calendar, Wrench, Rocket, CheckCircle2, Circle, ChevronRight } from 'lucide-react';
+import { Package, Search, Activity, HardDrive, AlertTriangle, Calendar, Wrench, ShieldAlert, Download, Rocket, CheckCircle2, Circle, ArrowRight, ChevronRight } from 'lucide-react';
 import { useDashboardAnalytics, AdminAlert } from '../hooks/useDashboardAnalytics';
 import { InventoryCard } from './dashboard/InventoryCard';
 import { RenovationIndicator } from './dashboard/RenovationIndicator';

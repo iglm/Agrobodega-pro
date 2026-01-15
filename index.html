@@ -3,11 +3,11 @@
 <html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="author" content="Lucas Mateo Tabares Franco" />
     <meta name="copyright" content="© 2025 Lucas Mateo Tabares Franco - DatosFinca Viva" />
-    <meta name="description" content="Plataforma de Inteligencia Agrícola y Gestión de Activos Biológicos." />
-    <title>DatosFinca Viva | Plataforma Web</title>
+    <meta name="description" content="ERP Agrícola Integral - Gestión de Inventarios CPP, Nómina, Calidad y Estrategia." />
+    <title>DatosFinca Viva</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -88,16 +88,18 @@
       }
       body {
         font-family: 'Inter', sans-serif;
-        /* Removed mobile paddings for full screen web app feel */
-        margin: 0;
+        padding-top: var(--sat);
+        padding-bottom: var(--sab);
+        -webkit-tap-highlight-color: transparent;
         overflow-x: hidden;
       }
       input, textarea, select { -webkit-user-select: text; user-select: text; }
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
       .custom-scrollbar::-webkit-scrollbar-thumb { 
         background: #475569; 
         border-radius: 10px; 
+        border: 2px solid #1e293b; 
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
       .scrollbar-hide {
@@ -106,6 +108,11 @@
       }
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
+      }
+      .scroll-container {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
     </style>
   <script type="importmap">
@@ -128,8 +135,8 @@
 }
 </script>
 </head>
-  <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 h-screen overflow-hidden">
-    <div id="root" class="h-full"></div>
+  <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

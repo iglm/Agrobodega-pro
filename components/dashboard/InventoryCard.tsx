@@ -26,22 +26,13 @@ const InventoryCardBase: React.FC<InventoryCardProps> = ({
   const baseUnit = item.baseUnit;
   const costPerBase = item.averageCost;
   
-  // Logic for display labels and secondary cost calculation
-  let baseUnitLabel = 'Unidad';
-  let secondaryUnitLabel = '100 Unds';
-  let secondaryCost = costPerBase * 100;
-
-  if (baseUnit === 'g') {
-      baseUnitLabel = 'Gramo';
-      secondaryUnitLabel = 'Kg';
-      secondaryCost = costPerBase * 1000;
-  } else if (baseUnit === 'ml') {
-      baseUnitLabel = 'ml';
-      secondaryUnitLabel = 'Litro';
-      secondaryCost = costPerBase * 1000;
-  }
-
+  // CORRECCIÓN: Si es Unidad, no multiplicar por 1000. Si es g/ml, mostrar valor Kg/L.
+  const costPerKgOrL = baseUnit === 'unit' ? costPerBase : costPerBase * 1000;
   const costPerBulto = costPerBase * 50000;
+
+  // Lógica de etiquetas dinámica
+  const labelMicro = baseUnit === 'g' ? 'Gramo' : baseUnit === 'ml' ? 'Ml' : 'Unidad';
+  const labelMacro = baseUnit === 'g' ? 'Kg' : baseUnit === 'ml' ? 'Litro' : 'Unidad';
 
   return (
     <div className={`bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 shadow-xl border transition-all hover:shadow-2xl relative group ${isLowStock ? 'border-red-500/40' : 'border-slate-200 dark:border-slate-700'}`}>
@@ -83,12 +74,12 @@ const InventoryCardBase: React.FC<InventoryCardProps> = ({
             
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Valor {baseUnitLabel}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Valor {labelMicro}</p>
                     <p className="text-base font-black text-indigo-500 font-mono">{formatCurrency(costPerBase, 2)}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Valor {secondaryUnitLabel}</p>
-                    <p className="text-base font-black text-indigo-500 font-mono">{formatCurrency(secondaryCost)}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Valor {labelMacro}</p>
+                    <p className="text-base font-black text-indigo-500 font-mono">{formatCurrency(costPerKgOrL)}</p>
                 </div>
             </div>
 
