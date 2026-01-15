@@ -2,7 +2,16 @@
 import React from 'react';
 import { X, FileSpreadsheet, FileText, Download, Sprout, Briefcase, PieChart, Clipboard, ShieldCheck, Thermometer, Shield, FileCheck, ArrowRight, FileDown, Layers, MapPin, Table, Book, BarChart4, Archive, Users, Tractor, DollarSign, Printer } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
-import { exportToExcel, exportFieldSheet } from '../services/reportService';
+import { 
+    generateExcel, 
+    exportFieldSheet, 
+    generatePDF, 
+    generateLaborReport, 
+    generateHarvestReport, 
+    generateMasterPDF, 
+    generateAgronomicDossier, 
+    generateSafetyReport 
+} from '../services/reportService';
 
 interface ExportModalProps {
   onClose: () => void;
@@ -37,7 +46,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const activeW = data.warehouses.find(w => w.id === data.activeWarehouseId);
 
   const handleExportCostNotebook = () => {
-      exportToExcel(data);
+      // Fix: Use generateExcel instead of renamed exportToExcel
+      generateExcel(data);
   };
 
   const handleExportFieldSheet = () => {
@@ -87,7 +97,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                             <div className="flex-1 text-left">
                                 <h5 className="text-xl font-black text-white mb-1 group-hover:text-emerald-300 transition-colors">Cuaderno de Costos (.xlsx)</h5>
                                 <p className="text-sm text-slate-300 font-medium leading-relaxed">
-                                    Genera el libro contable oficial con pestañas separadas para <strong>Nómina, Insumos y Ventas</strong>. Formato optimizado para bancos y Federación Nacional.
+                                    Genera el libro contable oficial con pestañas separadas para <strong>Nómina, Insumos y Ventas</strong>. Formato optimizado para bancos y gremios.
                                 </p>
                             </div>
                             <div className="bg-slate-800 p-3 rounded-full border border-slate-600 group-hover:bg-emerald-600 group-hover:border-emerald-500 transition-colors">
@@ -97,7 +107,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     </button>
 
                     {/* Reportes Secundarios Finanzas */}
-                    <div onClick={onExportMasterPDF} className="bg-slate-800 hover:bg-slate-750 p-6 rounded-[2rem] border border-slate-700 hover:border-slate-600 cursor-pointer transition-all group flex items-start gap-4">
+                    <div onClick={() => generateMasterPDF(data)} className="bg-slate-800 hover:bg-slate-750 p-6 rounded-[2rem] border border-slate-700 hover:border-slate-600 cursor-pointer transition-all group flex items-start gap-4">
                         <div className="p-3 bg-slate-900 rounded-2xl text-indigo-400 group-hover:text-white group-hover:bg-indigo-600 transition-colors"><FileText className="w-6 h-6"/></div>
                         <div>
                             <h5 className="font-bold text-white text-base">Resumen Gerencial PDF</h5>
@@ -105,11 +115,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         </div>
                     </div>
 
-                    <div onClick={onExportExcel} className="bg-slate-800 hover:bg-slate-750 p-6 rounded-[2rem] border border-slate-700 hover:border-slate-600 cursor-pointer transition-all group flex items-start gap-4">
+                    <div onClick={handleExportCostNotebook} className="bg-slate-800 hover:bg-slate-750 p-6 rounded-[2rem] border border-slate-700 hover:border-slate-600 cursor-pointer transition-all group flex items-start gap-4">
                         <div className="p-3 bg-slate-900 rounded-2xl text-slate-400 group-hover:text-white group-hover:bg-slate-600 transition-colors"><Archive className="w-6 h-6"/></div>
                         <div>
-                            <h5 className="font-bold text-white text-base">Backup Completo (Raw)</h5>
-                            <p className="text-xs text-slate-400 mt-1">Exportación bruta de base de datos para análisis externo.</p>
+                            <h5 className="font-bold text-white text-base">Backup Libro Excel</h5>
+                            <p className="text-xs text-slate-400 mt-1">Exportación completa para manipulación manual de datos.</p>
                         </div>
                     </div>
                 </div>
@@ -121,28 +131,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     <Tractor className="w-4 h-4" /> Operaciones de Campo
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <button onClick={onExportLaborPDF} className="bg-slate-800 p-5 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 hover:bg-slate-750 text-left transition-all group">
+                    <button onClick={() => generateLaborReport(data)} className="bg-slate-800 p-5 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 hover:bg-slate-750 text-left transition-all group">
                         <Users className="w-6 h-6 text-amber-500 mb-3 group-hover:scale-110 transition-transform origin-left" />
                         <p className="font-black text-slate-200 text-sm">Reporte de Nómina</p>
-                        <p className="text-[10px] text-slate-500 mt-1">Historial de pagos y jornales.</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Historial detallado de jornales.</p>
                     </button>
 
-                    <button onClick={onExportHarvestPDF} className="bg-slate-800 p-5 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 hover:bg-slate-750 text-left transition-all group">
+                    <button onClick={() => generateHarvestReport(data)} className="bg-slate-800 p-5 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 hover:bg-slate-750 text-left transition-all group">
                         <Sprout className="w-6 h-6 text-amber-500 mb-3 group-hover:scale-110 transition-transform origin-left" />
                         <p className="font-black text-slate-200 text-sm">Control Cosecha</p>
-                        <p className="text-[10px] text-slate-500 mt-1">Kilos recolectados y ventas.</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Kilos recolectados y rendimientos.</p>
                     </button>
 
                     <button onClick={handleExportFieldSheet} className="bg-slate-800 p-5 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 hover:bg-slate-750 text-left transition-all group">
                         <Printer className="w-6 h-6 text-indigo-400 group-hover:text-amber-500 mb-3 group-hover:scale-110 transition-transform origin-left" />
-                        <p className="font-black text-slate-200 text-sm">Imprimir Planilla en Blanco</p>
-                        <p className="text-[10px] text-slate-500 mt-1">PDF con lista de trabajadores para llenar a mano.</p>
-                    </button>
-
-                    <button onClick={onExportFieldTemplates} className="bg-slate-800 p-5 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 hover:bg-slate-750 text-left transition-all group">
-                        <Clipboard className="w-6 h-6 text-slate-400 group-hover:text-amber-500 mb-3 group-hover:scale-110 transition-transform origin-left" />
-                        <p className="font-black text-slate-200 text-sm">Planillas Genéricas</p>
-                        <p className="text-[10px] text-slate-500 mt-1">Formatos estándar para imprimir.</p>
+                        <p className="font-black text-slate-200 text-sm">Imprimir Planilla Blanca</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Formato para registro manual en campo.</p>
                     </button>
                 </div>
             </div>
@@ -153,15 +157,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     <Layers className="w-4 h-4" /> Bodega & Técnico
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button onClick={onExportPDF} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-750 transition-colors group">
+                    <button onClick={() => generatePDF(data)} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-750 transition-colors group">
                         <div className="p-2 bg-blue-900/30 rounded-xl text-blue-400"><FileCheck className="w-5 h-5" /></div>
                         <div className="text-left">
                             <p className="font-bold text-slate-200 text-sm">Inventario Valorizado</p>
-                            <p className="text-[10px] text-slate-500">Stock actual y costo promedio.</p>
+                            <p className="text-[10px] text-slate-500">Stock actual y costo promedio (CPP).</p>
                         </div>
                     </button>
 
-                    <button onClick={onExportAgronomicDossier} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-750 transition-colors group">
+                    <button onClick={() => generateAgronomicDossier(data)} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-700 transition-colors group">
                         <div className="p-2 bg-blue-900/30 rounded-xl text-blue-400"><Thermometer className="w-5 h-5" /></div>
                         <div className="text-left">
                             <p className="font-bold text-slate-200 text-sm">Dossier Agronómico</p>
@@ -169,19 +173,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         </div>
                     </button>
 
-                    <button onClick={onExportSafetyReport} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-750 transition-colors group">
+                    <button onClick={() => generateSafetyReport(data)} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-750 transition-colors group">
                         <div className="p-2 bg-red-900/20 rounded-xl text-red-400"><ShieldCheck className="w-5 h-5" /></div>
                         <div className="text-left">
                             <p className="font-bold text-slate-200 text-sm">Informe SST / Ambiental</p>
                             <p className="text-[10px] text-slate-500">Entregas EPP y Residuos.</p>
-                        </div>
-                    </button>
-
-                    <button onClick={onExportStructureExcel} className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 hover:bg-slate-750 transition-colors group">
-                        <div className="p-2 bg-emerald-900/20 rounded-xl text-emerald-400"><MapPin className="w-5 h-5" /></div>
-                        <div className="text-left">
-                            <p className="font-bold text-slate-200 text-sm">Censo de Lotes</p>
-                            <p className="text-[10px] text-slate-500">Matriz de estructura en Excel.</p>
                         </div>
                     </button>
                 </div>
@@ -192,7 +188,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Footer Informativo */}
         <div className="bg-slate-950 p-4 text-center border-t border-slate-800">
             <p className="text-[10px] text-slate-600 font-medium">
-                Todos los reportes generados cumplen con los estándares de trazabilidad ICA y GlobalG.A.P.
+                Reportes validados para cumplimiento de trazabilidad ICA y estándares de exportación.
             </p>
         </div>
 
