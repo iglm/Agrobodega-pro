@@ -1,4 +1,3 @@
-
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AppState } from '../types';
 import { loadDataFromLocalStorage, generateId, STORAGE_KEY } from './inventoryService';
@@ -51,7 +50,8 @@ const getCleanState = (): AppState => {
         laborLogs: [], harvests: [], machines: [], maintenanceLogs: [], rainLogs: [], financeLogs: [], 
         soilAnalyses: [], ppeLogs: [], wasteLogs: [], agenda: [], phenologyLogs: [], pestLogs: [], 
         plannedLabors: [], budgets: [], assets: [], bpaChecklist: {}, laborFactor: 1.0,
-        clients: [], salesContracts: [], sales: []
+        clients: [], salesContracts: [], sales: [],
+        auditLogs: [] // Adding this
     };
 };
 

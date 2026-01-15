@@ -1,5 +1,5 @@
 
-import { InventoryItem, Movement, Unit, AppState } from '../types';
+import { InventoryItem, Movement, Unit, AppState, AuditLog } from '../types';
 
 export const STORAGE_KEY = 'agrobodega_pro_v1';
 
@@ -10,12 +10,32 @@ export const generateId = (): string => {
   }
 
   // 2. Fallback Robusto: Generador compatible con UUID v4 (RFC 4122)
-  // Garantiza unicidad estadística incluso en navegadores antiguos
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+// --- AUDIT SYSTEM FACTORY ---
+export const createAuditLog = (
+  userId: string,
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SYNC' | 'ADJUST',
+  entity: string,
+  entityId: string,
+  detailsObj: any,
+  previousValueObj?: any
+): AuditLog => {
+  return {
+    id: generateId(),
+    timestamp: new Date().toISOString(),
+    userId,
+    action,
+    entity,
+    entityId,
+    details: JSON.stringify(detailsObj),
+    previousValue: previousValueObj ? JSON.stringify(previousValueObj) : undefined
+  };
 };
 
 const CONVERSION_RATES: Record<string, number> = {
@@ -86,7 +106,6 @@ export const formatBaseQuantity = (qty: number, type: string) => {
 
 /**
  * Calculates the new Weighted Average Cost (WAC/CPP).
- * @param incomingPrice - Price corresponding strictly to ONE unit of incomingUnit.
  */
 export const calculateWeightedAverageCost = (item: InventoryItem, incomingQty: number, incomingUnit: Unit, incomingPrice: number) => {
   const currentTotalVal = item.currentQuantity * item.averageCost;
@@ -104,6 +123,7 @@ export const processInventoryMovement = (inventory: InventoryItem[], movement: O
   const item = { ...updatedInventory[itemIndex] };
   const baseQty = convertToBase(movement.quantity, movement.unit);
   let movementCost = 0;
+  
   if (movement.type === 'IN') {
     const unitPrice = newPrice !== undefined ? newPrice : item.lastPurchasePrice;
     movementCost = movement.quantity * unitPrice; 
@@ -114,11 +134,14 @@ export const processInventoryMovement = (inventory: InventoryItem[], movement: O
     if (newExpirationDate) item.expirationDate = newExpirationDate;
   } else {
     // SAFETY: OUT movements must strictly use the existing Weighted Average Cost (CPP).
-    // We explicitly ignore any 'newPrice' passed to prevent fraudulent revaluation during outputs.
     movementCost = baseQty * item.averageCost;
     item.currentQuantity -= baseQty;
   }
+  
+  // Update conflict resolution timestamp
+  item.lastModified = new Date().toISOString();
   updatedInventory[itemIndex] = item;
+  
   return { updatedInventory, movementCost };
 };
 
@@ -128,7 +151,6 @@ export const loadDataFromLocalStorage = (): AppState => {
   if (storedData) { try { parsed = JSON.parse(storedData); } catch (e) {}}
   const id = parsed.activeWarehouseId || generateId();
   
-  // DEFAULT CONFIGURATION FOR GOOGLE SHEETS INTEGRATION
   const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbww3nEi-wRr0KnXCcLdmS608TKjm-e5W7SdDeEbtDmFe2FkJ5pPm5xL7oqwCRcsexRnmQ/exec';
 
   return {
@@ -158,12 +180,11 @@ export const loadDataFromLocalStorage = (): AppState => {
     swot: parsed.swot || { f: '', o: '', d: '', a: '' }, 
     bpaChecklist: parsed.bpaChecklist || {},
     assets: parsed.assets || [],
-    // Integration: Use the provided URL as default if none exists in storage
     googleSheetsUrl: parsed.googleSheetsUrl || DEFAULT_SHEET_URL,
-    // Commercial Module Initialization
     clients: parsed.clients || [],
     salesContracts: parsed.salesContracts || [],
-    sales: parsed.sales || []
+    sales: parsed.sales || [],
+    auditLogs: parsed.auditLogs || [] // New Audit Store
   };
 };
 

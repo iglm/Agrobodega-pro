@@ -63,6 +63,7 @@ export interface Asset {
   lifespanYears: number;
   purchaseDate: string;
   category: 'MAQUINARIA' | 'HERRAMIENTA' | 'INFRAESTRUCTURA';
+  lastModified?: string;
 }
 
 export interface PhenologyLog {
@@ -72,6 +73,7 @@ export interface PhenologyLog {
   date: string;
   stage: 'Dormancia' | 'Brote' | 'Floración' | 'Cuajado' | 'Llenado' | 'Maduración';
   notes?: string;
+  lastModified?: string;
 }
 
 export interface PestLog {
@@ -82,6 +84,7 @@ export interface PestLog {
   pestOrDisease: string;
   incidence: 'Baja' | 'Media' | 'Alta';
   notes?: string;
+  lastModified?: string;
 }
 
 export interface PlannedLabor {
@@ -102,6 +105,7 @@ export interface PlannedLabor {
   completed: boolean;
   notes?: string;
   assignedPersonnelIds?: string[]; // Personal asignado a la labor futura
+  lastModified?: string;
 }
 
 export interface BudgetItem {
@@ -120,6 +124,7 @@ export interface BudgetPlan {
   year: number;
   costCenterId: string;
   items: BudgetItem[];
+  lastModified?: string;
 }
 
 // --- COMMERCIAL MODULE INTERFACES ---
@@ -133,6 +138,7 @@ export interface Client {
   email?: string;
   phone?: string;
   address?: string;
+  lastModified?: string;
 }
 
 export interface SalesContract {
@@ -149,6 +155,7 @@ export interface SalesContract {
   expirationDate: string;
   fulfilledQuantity: number;
   notes?: string;
+  lastModified?: string;
 }
 
 export interface SaleItem {
@@ -174,6 +181,19 @@ export interface Sale {
   paymentDate?: string; // Fecha real de pago
   invoiceNumber?: string;
   notes?: string;
+  lastModified?: string;
+}
+
+// --- AUDIT SYSTEM ---
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  userId: string; // 'local_user' or actual ID
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SYNC' | 'ADJUST';
+  entity: string; // 'Inventory', 'CostCenter', etc.
+  entityId: string;
+  details: string; // JSON string or text summary of changes
+  previousValue?: string; // Optional: snapshot for rollback
 }
 
 // ------------------------------------
@@ -215,6 +235,9 @@ export interface AppState {
   clients: Client[];
   salesContracts: SalesContract[];
   sales: Sale[];
+
+  // Audit System
+  auditLogs: AuditLog[];
 }
 
 export interface Warehouse { 
@@ -223,6 +246,7 @@ export interface Warehouse {
   created: string; 
   ownerId: string;
   sharedWith?: { userId: string; email: string; role: 'viewer' | 'editor' }[];
+  lastModified?: string;
 }
 
 export interface CostCenter { 
@@ -244,6 +268,7 @@ export interface CostCenter {
   cropAgeMonths?: number;
   associatedCropDensity?: number;
   associatedCropAge?: number; // New Field for associated crop lifecycle
+  lastModified?: string;
 }
 
 export interface InventoryItem { 
@@ -262,6 +287,7 @@ export interface InventoryItem {
   description?: string;
   expirationDate?: string;
   safetyIntervalDays?: number;
+  lastModified?: string;
 }
 
 export interface LaborLog { 
@@ -281,6 +307,7 @@ export interface LaborLog {
   hoursWorked?: number;
   jornalesEquivalent?: number;
   performanceYieldHaJornal?: number;
+  lastModified?: string;
 }
 
 export interface HarvestLog { 
@@ -306,6 +333,7 @@ export interface HarvestLog {
   // BI Fields
   brocaLossValue?: number; // Dinero perdido por castigo de precio
   efficiencyStatus?: 'LOW_OFFER' | 'LOW_EFFICIENCY' | 'OPTIMAL';
+  lastModified?: string;
 }
 
 export interface Movement { 
@@ -334,6 +362,7 @@ export interface Movement {
   // Admin Fields
   paymentDueDate?: string;
   paymentStatus?: 'PENDING' | 'PAID';
+  lastModified?: string;
 }
 
 export interface InitialMovementDetails {
@@ -360,14 +389,15 @@ export interface SoilAnalysis {
   boron?: number;
   organicMatter: number;
   notes: string; 
+  lastModified?: string;
 }
 
-export interface PPELog { id: string; warehouseId: string; personnelId: string; personnelName: string; date: string; items: string[]; notes?: string; }
-export interface WasteLog { id: string; warehouseId: string; date: string; itemDescription: string; quantity: number; tripleWashed: boolean; disposalPoint?: string; }
-export interface Machine { id: string; warehouseId: string; name: string; brand?: string; purchaseDate?: string; purchaseValue?: number; expectedLifeHours?: number; capacityTheoretical?: number; width?: number; efficiency?: number; dischargeRateLitersPerMin?: number; avgSpeedKmh?: number; }
-export interface MaintenanceLog { id: string; warehouseId: string; machineId: string; date: string; cost: number; description: string; hoursWorked?: number; fuelUsedLiters?: number; }
-export interface RainLog { id: string; warehouseId: string; date: string; millimeters: number; }
-export interface FinanceLog { id: string; warehouseId: string; date: string; type: 'INCOME' | 'EXPENSE'; amount: number; category: string; description: string; }
+export interface PPELog { id: string; warehouseId: string; personnelId: string; personnelName: string; date: string; items: string[]; notes?: string; lastModified?: string; }
+export interface WasteLog { id: string; warehouseId: string; date: string; itemDescription: string; quantity: number; tripleWashed: boolean; disposalPoint?: string; lastModified?: string; }
+export interface Machine { id: string; warehouseId: string; name: string; brand?: string; purchaseDate?: string; purchaseValue?: number; expectedLifeHours?: number; capacityTheoretical?: number; width?: number; efficiency?: number; dischargeRateLitersPerMin?: number; avgSpeedKmh?: number; lastModified?: string; }
+export interface MaintenanceLog { id: string; warehouseId: string; machineId: string; date: string; cost: number; description: string; hoursWorked?: number; fuelUsedLiters?: number; lastModified?: string; }
+export interface RainLog { id: string; warehouseId: string; date: string; millimeters: number; lastModified?: string; }
+export interface FinanceLog { id: string; warehouseId: string; date: string; type: 'INCOME' | 'EXPENSE'; amount: number; category: string; description: string; lastModified?: string; }
 
 export type CostClassification = 'JOINT' | 'COFFEE' | 'PLANTAIN' | 'OTHER';
 
@@ -376,6 +406,7 @@ export interface Activity {
   warehouseId: string; 
   name: string; 
   costClassification?: CostClassification;
+  lastModified?: string;
 }
 
 export interface Personnel { 
@@ -395,6 +426,7 @@ export interface Personnel {
   contractType?: ContractType;
   contractStartDate?: string;
   contractEndDate?: string;
+  lastModified?: string;
 }
 
 export interface Supplier { 
@@ -406,4 +438,5 @@ export interface Supplier {
   address?: string;
   taxId?: string;
   creditDays?: number;
+  lastModified?: string;
 }

@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { InventoryItem, Unit } from '../types';
-import { formatBaseQuantity, getBaseUnitType, convertToBase } from '../services/inventoryService';
+import { formatBaseQuantity, getBaseUnitType, convertToBase, createAuditLog } from '../services/inventoryService';
+import { useData } from '../contexts/DataContext';
 import { X, CheckCircle, AlertTriangle, ClipboardCheck, ArrowRight, Save, FileText } from 'lucide-react';
 
 interface AuditModalProps {
@@ -10,6 +12,7 @@ interface AuditModalProps {
 }
 
 export const AuditModal: React.FC<AuditModalProps> = ({ inventory, onAdjust, onClose }) => {
+  const { setData } = useData();
   const [step, setStep] = useState<'select' | 'count' | 'result'>('select');
   const [selectedItemId, setSelectedItemId] = useState('');
   const [countedQty, setCountedQty] = useState('');
@@ -41,7 +44,29 @@ export const AuditModal: React.FC<AuditModalProps> = ({ inventory, onAdjust, onC
         note += ` Justificación: ${justification.trim()}`;
     }
     
+    // 1. Perform logic adjustment (Parent)
     onAdjust(selectedItem, realQtyBase, note);
+
+    // 2. Generate Audit Log (Local override for direct DB access)
+    // Note: onAdjust usually creates a movement, but we want to log the "AUDIT EVENT" specifically here
+    const auditLog = createAuditLog(
+        'local_user', 
+        'ADJUST', 
+        'InventoryItem', 
+        selectedItem.id, 
+        { 
+            oldQty: selectedItem.currentQuantity, 
+            newQty: realQtyBase, 
+            reason: justification 
+        }
+    );
+
+    // Append log asynchronously to state
+    setData(prev => ({
+        ...prev,
+        auditLogs: [...prev.auditLogs, auditLog]
+    }));
+    
     onClose();
   };
 

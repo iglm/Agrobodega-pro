@@ -29,7 +29,8 @@ export const syncToGoogleSheets = async (data: AppState, scriptUrl: string): Pro
       Cantidad: i.currentQuantity,
       Unidad: i.baseUnit,
       CostoPromedio: i.averageCost,
-      ValorTotal: i.currentQuantity * i.averageCost
+      ValorTotal: i.currentQuantity * i.averageCost,
+      UltimaModif: i.lastModified || ''
     })),
 
     // 2. Movimientos (Kárdex) - Últimos 500 para reporte
@@ -39,7 +40,8 @@ export const syncToGoogleSheets = async (data: AppState, scriptUrl: string): Pro
       Item: m.itemName,
       Cantidad: m.quantity,
       CostoTotal: m.calculatedCost,
-      Tercero: m.type === 'IN' ? m.supplierName : m.costCenterName
+      Tercero: m.type === 'IN' ? m.supplierName : m.costCenterName,
+      ID: m.id
     })),
 
     // 3. Cosechas (Ventas)
@@ -48,7 +50,8 @@ export const syncToGoogleSheets = async (data: AppState, scriptUrl: string): Pro
       Lote: h.costCenterName,
       Cultivo: h.cropName,
       Cantidad: h.quantity,
-      ValorVenta: h.totalValue
+      ValorVenta: h.totalValue,
+      UltimaModif: h.lastModified || ''
     })),
 
     // 4. Nómina (Pagos Realizados)
@@ -57,7 +60,20 @@ export const syncToGoogleSheets = async (data: AppState, scriptUrl: string): Pro
       Trabajador: l.personnelName,
       Actividad: l.activityName,
       Lote: l.costCenterName,
-      ValorPagado: l.value
+      ValorPagado: l.value,
+      UltimaModif: l.lastModified || ''
+    })),
+
+    // 5. AUDIT LOG (Conflict Resolution Source of Truth)
+    // Enviamos los últimos 200 cambios para que la hoja de cálculo tenga trazabilidad
+    // En caso de conflicto de datos, este log permite "rebobinar" (Time Travel) en el análisis
+    audit: data.auditLogs.slice(-200).map(log => ({
+      Timestamp: log.timestamp,
+      Usuario: log.userId,
+      Accion: log.action,
+      Entidad: log.entity,
+      ID_Ref: log.entityId,
+      Detalle: log.details.substring(0, 1000) // Truncate for safety
     }))
   };
 

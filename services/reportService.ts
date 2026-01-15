@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -842,6 +841,7 @@ export const getDemoData = (): AppState => {
         rainLogs: [], financeLogs: [], soilAnalyses: [], ppeLogs: [], wasteLogs: [], 
         agenda: [], phenologyLogs: [], pestLogs: [], plannedLabors: [], budgets: [], 
         assets: [], bpaChecklist: {}, laborFactor: 1.0,
-        clients: [], salesContracts: [], sales: []
+        clients: [], salesContracts: [], sales: [],
+        auditLogs: [] // Adding this
     };
 };
