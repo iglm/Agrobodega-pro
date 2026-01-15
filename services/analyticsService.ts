@@ -12,9 +12,16 @@ export interface LotRentability {
   marginPercent: number;
 }
 
+export interface FarmKPIs {
+  totalIncomes: number;
+  totalExpenses: number;
+  netProfit: number;
+  costPerKg: number; 
+  roi: number; 
+}
+
 /**
  * Calcula la rentabilidad total de un lote específico.
- * Utiliza costeo absorbente prorrateando gastos indirectos por área.
  */
 export const calculateLotRentability = (data: AppState, lotId: string): LotRentability => {
   const lot = data.costCenters.find(c => c.id === lotId);
@@ -22,17 +29,14 @@ export const calculateLotRentability = (data: AppState, lotId: string): LotRenta
 
   const laborFactor = data.laborFactor || 1.0;
 
-  // 1. Costo Directo de Mano de Obra
   const laborCost = data.laborLogs
     .filter(l => l.costCenterId === lotId)
     .reduce((sum, l) => sum + (l.value * laborFactor), 0);
 
-  // 2. Costo Directo de Insumos (Movimientos OUT)
   const inputCost = data.movements
     .filter(m => m.costCenterId === lotId && m.type === 'OUT')
     .reduce((sum, m) => sum + m.calculatedCost, 0);
 
-  // 3. Gastos Indirectos Prorrateados (FinanceLogs de tipo EXPENSE)
   const totalArea = data.costCenters.reduce((sum, c) => sum + (c.area || 0), 0) || 1;
   const indirectExpenses = data.financeLogs
     .filter(f => f.type === 'EXPENSE')
@@ -40,7 +44,6 @@ export const calculateLotRentability = (data: AppState, lotId: string): LotRenta
   
   const prorratedIndirect = (indirectExpenses / totalArea) * lot.area;
 
-  // 4. Ingresos (Harvests)
   const totalIncome = data.harvests
     .filter(h => h.costCenterId === lotId)
     .reduce((sum, h) => sum + h.totalValue, 0);
@@ -58,5 +61,39 @@ export const calculateLotRentability = (data: AppState, lotId: string): LotRenta
     totalIncome,
     margin,
     marginPercent
+  };
+};
+
+/**
+ * Calcula los KPIs globales de la finca basados en el estado actual.
+ */
+export const calculateKPIs = (data: AppState): FarmKPIs => {
+  const laborFactor = data.laborFactor || 1.0;
+  
+  const totalLaborNet = data.laborLogs.reduce((acc, l) => acc + l.value, 0);
+  const totalLaborReal = totalLaborNet * laborFactor;
+  
+  const totalInputs = data.movements
+    .filter(m => m.type === 'OUT')
+    .reduce((acc, m) => acc + m.calculatedCost, 0);
+    
+  const totalIncomes = data.harvests.reduce((acc, h) => acc + h.totalValue, 0);
+  const totalKgProduced = data.harvests.reduce((acc, h) => acc + h.quantity, 0);
+  
+  const financeExpenses = data.financeLogs
+    .filter(f => f.type === 'EXPENSE')
+    .reduce((acc, f) => acc + f.amount, 0);
+
+  const totalExpenses = totalLaborReal + totalInputs + financeExpenses;
+  const netProfit = totalIncomes - totalExpenses;
+  const costPerKg = totalKgProduced > 0 ? totalExpenses / totalKgProduced : 0;
+  const roi = totalExpenses > 0 ? (netProfit / totalExpenses) * 100 : 0;
+
+  return {
+    totalIncomes,
+    totalExpenses,
+    netProfit,
+    costPerKg,
+    roi
   };
 };

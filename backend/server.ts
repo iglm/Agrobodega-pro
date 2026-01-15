@@ -7,12 +7,46 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Permitir ráfagas de datos grandes
+// Configuración de CORS dinámica
+const allowedOrigins = [
+  'http://localhost:5173',
+  /\.web\.app$/,
+  /\.firebaseapp\.com$/
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(pattern => 
+      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json({ limit: '50mb' }));
+
+/**
+ * Endpoint de Exportación a Google Sheets
+ * Este endpoint actúa como un proxy seguro o disparador para procesos de Sheets.
+ */
+app.post('/api/export/sheets', async (req: Request, res: Response) => {
+  const data = req.body;
+  
+  console.log(`[Export] Recibida solicitud de exportación tipo: ${data.syncType}`);
+  
+  // Aquí se integraría la lógica de 'google-auth-library' para escribir directamente
+  // o se redirige al Google Apps Script configurado.
+  
+  res.json({ success: true, message: 'Datos recibidos en el servidor de Cloud Run' });
+});
 
 /**
  * Endpoint Maestro de Sincronización
- * Recibe una colección de registros y los guarda/actualiza.
  */
 app.post('/api/v1/:entity/sync', async (req: Request, res: Response) => {
   const { entity } = req.params;
@@ -30,10 +64,8 @@ app.post('/api/v1/:entity/sync', async (req: Request, res: Response) => {
   try {
     const results = await prisma.$transaction(
       records.map((record: any) => {
-        // Limpiar campos que no pertenecen a la DB o son generados por el servidor
         const { serverId, syncStatus, ...data } = record;
         
-        // Conversión de fechas y números si es necesario
         if (data.date) data.date = new Date(data.date);
         if (data.lastUpdated) data.lastUpdated = BigInt(data.lastUpdated);
 
@@ -45,14 +77,12 @@ app.post('/api/v1/:entity/sync', async (req: Request, res: Response) => {
       })
     );
 
-    // Devolvemos los IDs locales y los ServerIDs generados para confirmar la sync
     const confirmation = results.map((r: any) => ({
       id: r.id,
       serverId: r.serverId,
       lastUpdated: Number(r.lastUpdated)
     }));
 
-    console.log(`[Sync] Successfully synced ${results.length} records for ${entity}`);
     res.json({ success: true, synced: confirmation });
 
   } catch (error: any) {
@@ -64,9 +94,8 @@ app.post('/api/v1/:entity/sync', async (req: Request, res: Response) => {
   }
 });
 
-// Health check para Cloud Run
-app.get('/health', (req, res) => res.send('OK'));
+app.get('/health', (req, res) => res.send('AgroBodega Cloud Engine Online'));
 
 app.listen(PORT, () => {
-  console.log(`🚀 AgroBodega Cloud Engine running on port ${PORT}`);
+  console.log(`🚀 Backend desplegado en puerto ${PORT}`);
 });

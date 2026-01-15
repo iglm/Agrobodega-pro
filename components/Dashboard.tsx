@@ -1,14 +1,16 @@
 
-import React, { useMemo, useState } from 'react';
-import { InventoryItem, Movement, CostCenter, Personnel, Machine, MaintenanceLog, Supplier } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { InventoryItem, Movement, CostCenter, Personnel, Machine, MaintenanceLog, Supplier, AppState } from '../types';
 import { formatCurrency } from '../services/inventoryService';
-import { Package, Search, Activity, HardDrive, AlertTriangle, Calendar, Wrench, Rocket, CheckCircle2, Circle, ChevronRight } from 'lucide-react';
+import { checkFarmHealth, AgroAlert } from '../services/alertService';
+import { Package, Search, Activity, HardDrive, AlertTriangle, Calendar, Wrench, Rocket, CheckCircle2, Circle, ChevronRight, Lightbulb } from 'lucide-react';
 import { useDashboardAnalytics, AdminAlert } from '../hooks/useDashboardAnalytics';
 import { InventoryCard } from './dashboard/InventoryCard';
 import { RenovationIndicator } from './dashboard/RenovationIndicator';
 import { Card } from './UIElements'; // Using new components
 
 interface DashboardProps {
+  data: AppState;
   inventory: InventoryItem[];
   costCenters: CostCenter[];
   movements: Movement[];
@@ -25,26 +27,44 @@ interface DashboardProps {
   isAdmin?: boolean; 
 }
 
-const AdminAlertsWidget: React.FC<{ alerts: AdminAlert[] }> = ({ alerts }) => (
-    <div className="bg-slate-900/50 p-5 rounded-[2rem] border border-amber-500/20 flex flex-col gap-3 animate-slide-up">
-        <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> Alertas Administrativas
-        </h4>
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-            {alerts.map(alert => (
-                <div key={alert.id} className={`shrink-0 p-3 rounded-xl border flex items-center gap-3 min-w-[240px] ${alert.severity === 'HIGH' ? 'bg-red-900/20 border-red-500/30' : 'bg-slate-800 border-slate-700'}`}>
-                    <div className={`p-2 rounded-lg ${alert.type === 'CONTRACT' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                        {alert.type === 'CONTRACT' ? <Calendar className="w-4 h-4" /> : <Wrench className="w-4 h-4" />}
+const UnifiedAlertsWidget: React.FC<{ adminAlerts: AdminAlert[], agroAlerts: AgroAlert[] }> = ({ adminAlerts, agroAlerts }) => {
+    if (adminAlerts.length === 0 && agroAlerts.length === 0) return null;
+
+    return (
+        <div className="bg-slate-900/50 p-5 rounded-[2rem] border border-amber-500/20 flex flex-col gap-3 animate-slide-up mb-6">
+            <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" /> Inteligencia de Alertas
+            </h4>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                {/* Alertas Financieras/Agronómicas */}
+                {agroAlerts.map(alert => (
+                    <div key={alert.id} className={`shrink-0 p-4 rounded-2xl border flex items-start gap-3 min-w-[280px] max-w-[320px] ${alert.type === 'critical' ? 'bg-red-900/20 border-red-500/30' : 'bg-amber-900/20 border-amber-500/30'}`}>
+                        <div className={`p-2 rounded-lg mt-1 ${alert.type === 'critical' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                            <Lightbulb className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-[10px] font-black uppercase ${alert.type === 'critical' ? 'text-red-400' : 'text-amber-400'}`}>{alert.message}</p>
+                            <p className="text-[10px] text-slate-400 leading-tight mt-1 whitespace-normal">{alert.advice}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className={`text-[10px] font-black uppercase ${alert.severity === 'HIGH' ? 'text-red-400' : 'text-slate-300'}`}>{alert.type === 'CONTRACT' ? 'Vencimiento Contrato' : 'Mantenimiento'}</p>
-                        <p className="text-[10px] text-slate-400 leading-tight">{alert.message}</p>
+                ))}
+
+                {/* Alertas Administrativas Tradicionales */}
+                {adminAlerts.map(alert => (
+                    <div key={alert.id} className={`shrink-0 p-4 rounded-2xl border flex items-start gap-3 min-w-[280px] max-w-[320px] ${alert.severity === 'HIGH' ? 'bg-red-900/20 border-red-500/30' : 'bg-slate-800 border-slate-700'}`}>
+                        <div className={`p-2 rounded-lg mt-1 ${alert.type === 'CONTRACT' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                            {alert.type === 'CONTRACT' ? <Calendar className="w-4 h-4" /> : <Wrench className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-[10px] font-black uppercase ${alert.severity === 'HIGH' ? 'text-red-400' : 'text-slate-300'}`}>{alert.type === 'CONTRACT' ? 'Vencimiento Contrato' : 'Mantenimiento'}</p>
+                            <p className="text-[10px] text-slate-400 leading-tight mt-1 whitespace-normal">{alert.message}</p>
+                        </div>
                     </div>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const OnboardingWidget: React.FC<{ 
     hasLots: boolean; 
@@ -102,12 +122,20 @@ const OnboardingWidget: React.FC<{
 };
 
 const DashboardBase: React.FC<DashboardProps> = ({ 
-  inventory = [], costCenters = [], movements = [], personnel = [], machines = [], maintenanceLogs = [], suppliers = [],
+  data, inventory = [], costCenters = [], movements = [], personnel = [], machines = [], maintenanceLogs = [], suppliers = [],
   onAddMovement, onDelete, onViewHistory, onViewGlobalHistory, onNavigate, isAdmin
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('Todos');
+  const [agroAlerts, setAgroAlerts] = useState<AgroAlert[]>([]);
+
   const { renovationAnalysis, inventoryAnalytics, storage, adminAlerts } = useDashboardAnalytics(inventory, costCenters, movements, personnel, machines, maintenanceLogs);
+
+  useEffect(() => {
+    if (data.activeWarehouseId) {
+        setAgroAlerts(checkFarmHealth(data));
+    }
+  }, [data]);
 
   const filteredInventory = useMemo(() => inventory.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -142,7 +170,8 @@ const DashboardBase: React.FC<DashboardProps> = ({
           </div>
       </Card>
 
-      {adminAlerts.length > 0 && <AdminAlertsWidget alerts={adminAlerts} />}
+      <UnifiedAlertsWidget adminAlerts={adminAlerts} agroAlerts={agroAlerts} />
+      
       {costCenters.length > 0 && <RenovationIndicator analysis={renovationAnalysis} />}
 
       <div className="grid grid-cols-2 gap-4">
