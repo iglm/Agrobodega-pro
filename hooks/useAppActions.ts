@@ -37,20 +37,98 @@ export const useAppActions = (
     notify('Lote eliminado.', 'success');
   }, [data, setData, notify, logAudit]);
 
-  const saveNewItem = useCallback((item: any, initialQuantity: number, initialMovementDetails: any, initialUnit?: Unit) => {
-    const baseUnit = getBaseUnitType(item.lastPurchaseUnit);
-    const id = generateId();
-    const newItem: any = { 
-        ...item, id, warehouseId: data.activeWarehouseId, 
-        baseUnit, currentQuantity: 0, averageCost: 0 
+  const saveNewItem = useCallback((item: Omit<InventoryItem, 'id' | 'currentQuantity' | 'baseUnit' | 'warehouseId' | 'averageCost'>, initialQuantity: number, initialMovementDetails?: InitialMovementDetails, initialUnit?: Unit) => {
+    const baseUnitType = getBaseUnitType(item.lastPurchaseUnit);
+    const newProductId = generateId();
+
+    let initialCurrentQuantity = 0;
+    let initialAverageCost = 0;
+    let initialMovement: Movement | undefined;
+
+    if (initialQuantity > 0 && item.lastPurchasePrice !== undefined && initialUnit) {
+      // Convert initial quantity to base units
+      initialCurrentQuantity = convertToBase(initialQuantity, initialUnit);
+      
+      // Calculate initial average cost (cost per base unit)
+      const costPerBaseUnit = item.lastPurchasePrice / convertToBase(1, item.lastPurchaseUnit);
+      initialAverageCost = costPerBaseUnit;
+
+      // Create an initial 'IN' movement for historical tracking
+      initialMovement = {
+        id: generateId(),
+        warehouseId: data.activeWarehouseId,
+        itemId: newProductId,
+        itemName: item.name,
+        type: 'IN',
+        quantity: initialQuantity,
+        unit: initialUnit,
+        // The calculatedCost for this initial movement is the total value of this first purchase
+        calculatedCost: initialQuantity * item.lastPurchasePrice, // Assuming item.lastPurchasePrice is per initialUnit
+        date: new Date().toISOString(),
+        notes: `Entrada inicial al sistema.`,
+        invoiceNumber: initialMovementDetails?.invoiceNumber,
+        invoiceImage: initialMovementDetails?.invoiceImage,
+        supplierId: initialMovementDetails?.supplierId,
+        supplierName: initialMovementDetails?.supplierId ? data.suppliers.find(s => s.id === initialMovementDetails.supplierId)?.name : undefined,
+        paymentDueDate: initialMovementDetails?.paymentDueDate,
+        paymentStatus: 'PAID', // Initial stock is assumed paid
+        syncStatus: 'pending_sync'
+      };
+    }
+
+    const newItem: InventoryItem = {
+      ...item,
+      id: newProductId,
+      warehouseId: data.activeWarehouseId,
+      baseUnit: baseUnitType,
+      currentQuantity: initialCurrentQuantity, // Set to calculated initial quantity
+      averageCost: initialAverageCost, // Set to calculated initial cost
+      syncStatus: 'pending_sync'
     };
     
     setData(prev => ({
-        ...prev,
-        inventory: [...prev.inventory, newItem]
+      ...prev,
+      inventory: [...prev.inventory, newItem],
+      movements: initialMovement ? [...prev.movements, initialMovement] : prev.movements
     }));
-    logAudit('CREATE', 'inventory', id, `Creación de producto: ${item.name}`, null, newItem);
-    notify('Producto creado.', 'success');
+
+    logAudit('CREATE', 'inventory', newProductId, `Creación de producto: ${item.name}`, null, newItem);
+    notify('Producto creado y stock inicial registrado.', 'success');
+  }, [data, setData, notify, logAudit]);
+
+  const addPlannedLabor = useCallback((labor: Omit<PlannedLabor, 'id' | 'warehouseId' | 'completed'>) => {
+    const newLabor: PlannedLabor = {
+      ...labor,
+      id: generateId(),
+      warehouseId: data.activeWarehouseId,
+      completed: false,
+      syncStatus: 'pending_sync'
+    };
+    setData(prev => ({ ...prev, plannedLabors: [...prev.plannedLabors, newLabor] }));
+    logAudit('CREATE', 'labor', newLabor.id, `Programación de labor: ${labor.activityName} en ${labor.costCenterName}`, null, newLabor);
+    notify('Labor programada.', 'success');
+  }, [data, setData, notify, logAudit]);
+
+  const deletePersonnel = useCallback((id: string) => {
+    const personToDelete = data.personnel.find(p => p.id === id);
+    if (!confirm(`¿Eliminar personal ${personToDelete?.name}? Esta acción es irreversible.`)) return;
+    setData(prev => ({
+      ...prev,
+      personnel: prev.personnel.filter(p => p.id !== id)
+    }));
+    logAudit('DELETE', 'labor', id, `Eliminación de personal: ${personToDelete?.name}`, personToDelete);
+    notify('Personal eliminado.', 'success');
+  }, [data, setData, notify, logAudit]);
+
+  const deleteActivity = useCallback((id: string) => {
+    const activityToDelete = data.activities.find(a => a.id === id);
+    if (!confirm(`¿Eliminar actividad ${activityToDelete?.name}? Esto afectará labores programadas.`)) return;
+    setData(prev => ({
+      ...prev,
+      activities: prev.activities.filter(a => a.id !== id)
+    }));
+    logAudit('DELETE', 'labor', id, `Eliminación de actividad: ${activityToDelete?.name}`, activityToDelete);
+    notify('Actividad eliminada.', 'success');
   }, [data, setData, notify, logAudit]);
 
   const updateCostCenter = useCallback((lot: CostCenter) => {
@@ -67,18 +145,22 @@ export const useAppActions = (
     setData(prev => {
       const exists = prev.budgets?.find(b => b.id === budget.id);
       if (exists) {
+          logAudit('UPDATE', 'finance', budget.id, `Actualización de presupuesto: año ${budget.year} lote ${data.costCenters.find(c=>c.id === budget.costCenterId)?.name}`, exists, budget);
           return { ...prev, budgets: prev.budgets.map(b => b.id === budget.id ? budget : b) };
       }
+      logAudit('CREATE', 'finance', budget.id, `Creación de presupuesto: año ${budget.year} lote ${data.costCenters.find(c=>c.id === budget.costCenterId)?.name}`, null, budget);
       return { ...prev, budgets: [...(prev.budgets || []), budget] };
     });
-    logAudit(budget.id ? 'UPDATE' : 'CREATE', 'finance', budget.id, `Presupuesto guardado año ${budget.year}`);
     notify('Presupuesto guardado.', 'success');
   }, [setData, notify, logAudit]);
 
   return useMemo(() => ({
     deleteCostCenter,
+    deletePersonnel,
+    deleteActivity,
     saveNewItem,
+    addPlannedLabor,
     updateCostCenter,
-    saveBudget
-  }), [deleteCostCenter, saveNewItem, updateCostCenter, saveBudget]);
+    saveBudget,
+  }), [deleteCostCenter, deletePersonnel, deleteActivity, saveNewItem, addPlannedLabor, updateCostCenter, saveBudget]);
 };
